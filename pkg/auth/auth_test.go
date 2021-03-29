@@ -1,21 +1,22 @@
 package auth
 
 import (
+	"strings"
 	"testing"
 )
 
 func Test_isAuthorized(t *testing.T) {
 	authConfig := Authn{
-		Users: []User{
+		StaticUsers: []User{
 			{
 				Username: "User-a",
 				Password: "pass-a",
-				Tenant:   "tenant-a",
+				Tenants:  []string{"tenant-a"},
 			},
 			{
 				Username: "User-b",
 				Password: "pass-b",
-				Tenant:   "tenant-b",
+				Tenants:  []string{"tenant-b"},
 			},
 		},
 	}
@@ -28,7 +29,7 @@ func Test_isAuthorized(t *testing.T) {
 		name  string
 		args  args
 		want  bool
-		want1 string
+		want1 []string
 	}{
 		{
 			"Valid User",
@@ -38,7 +39,7 @@ func Test_isAuthorized(t *testing.T) {
 				&authConfig,
 			},
 			true,
-			"tenant-a",
+			[]string{"tenant-a"},
 		}, {
 			"Invalid User",
 			args{
@@ -47,7 +48,7 @@ func Test_isAuthorized(t *testing.T) {
 				&authConfig,
 			},
 			false,
-			"",
+			nil,
 		},
 	}
 	for _, tt := range tests {
@@ -56,7 +57,7 @@ func Test_isAuthorized(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("isAuthorized() got = %v, want %v", got, tt.want)
 			}
-			if got1 != tt.want1 {
+			if strings.Join(got1, ",") != strings.Join(tt.want1, ",") {
 				t.Errorf("isAuthorized() got1 = %v, want %v", got1, tt.want1)
 			}
 		})

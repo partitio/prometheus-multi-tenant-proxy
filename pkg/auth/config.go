@@ -8,14 +8,15 @@ import (
 
 // Authn Contains a list of users
 type Authn struct {
-	Users []User `yaml:"users"`
+	StaticUsers []User   `yaml:"static_users"`
+	Admins      []string `yaml:"admins"`
 }
 
 // User Identifies a user including the tenant
 type User struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Tenant   string `yaml:"tenant"`
+	Username string   `yaml:"username"`
+	Password string   `yaml:"password"`
+	Tenants  []string `yaml:"tenants"`
 }
 
 // ParseConfig read a configuration file in the path `location` and returns an Authn object
@@ -24,10 +25,10 @@ func ParseConfig(location string) (*Authn, error) {
 	if err != nil {
 		return nil, err
 	}
-	authn := Authn{}
-	err = yaml.Unmarshal(data, &authn)
+	authn := &Authn{}
+	err = yaml.Unmarshal(data, authn)
 	if err != nil {
 		return nil, err
 	}
-	return &authn, nil
+	return authn, nil
 }

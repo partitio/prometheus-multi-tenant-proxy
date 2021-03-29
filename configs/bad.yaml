@@ -1,4 +1,5 @@
-users
-  - username: User
-    password: Prom
-    tenant: tenant-1
+static_users
+- username: User
+  password: Prom
+  tenants:
+  - tenant-1

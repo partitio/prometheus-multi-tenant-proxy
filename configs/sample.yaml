@@ -1,7 +1,9 @@
-users:
-  - username: Happy
-    password: Prometheus
-    tenant: default
-  - username: Sad
-    password: Prometheus
-    tenant: kube-system
+static_users:
+- username: Happy
+  password: Prometheus
+  tenants:
+  - default
+- username: Sad
+  password: Prometheus
+  tenants:
+  - kube-system

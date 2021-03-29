@@ -1,7 +1,15 @@
-users:
-  - username: User-a
-    password: pass-a
-    tenant: tenant-a
-  - username: User-b
-    password: pass-b
-    tenant: tenant-b
+admins:
+- admin
+static_users:
+- username: User-a
+  password: pass-a
+  tenants:
+  - tenant-a
+- username: User-b
+  password: pass-b
+  tenants:
+  - tenant-b
+- username: admin
+  password: admin
+  tenants:
+  - admin

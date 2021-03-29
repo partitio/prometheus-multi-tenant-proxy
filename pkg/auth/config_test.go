@@ -11,34 +11,40 @@ func TestParseConfig(t *testing.T) {
 	configSampleLocation := "../../configs/sample.yaml"
 	configMultipleUserLocation := "../../configs/multiple.user.yaml"
 	expectedSampleAuth := Authn{
-		[]User{
+		StaticUsers: []User{
 			{
 				Username: "Happy",
 				Password: "Prometheus",
-				Tenant:   "default",
+				Tenants:  []string{"default"},
 			}, {
 				Username: "Sad",
 				Password: "Prometheus",
-				Tenant:   "kube-system",
+				Tenants:  []string{"kube-system"},
 			},
 		},
 	}
 	expectedMultipleUserAuth := Authn{
-		[]User{
+		Admins: []string{"admin"},
+		StaticUsers: []User{
 			{
 				Username: "User-a",
 				Password: "pass-a",
-				Tenant:   "tenant-a",
+				Tenants:  []string{"tenant-a"},
 			},
 			{
 				Username: "User-b",
 				Password: "pass-b",
-				Tenant:   "tenant-b",
+				Tenants:  []string{"tenant-b"},
+			},
+			{
+				Username: "admin",
+				Password: "admin",
+				Tenants:  []string{"admin"},
 			},
 		},
 	}
 	type args struct {
-		location *string
+		location string
 	}
 	tests := []struct {
 		name    string
@@ -49,28 +55,28 @@ func TestParseConfig(t *testing.T) {
 		{
 			"Basic",
 			args{
-				&configSampleLocation,
+				configSampleLocation,
 			},
 			&expectedSampleAuth,
 			false,
 		}, {
 			"Multiples users",
 			args{
-				&configMultipleUserLocation,
+				configMultipleUserLocation,
 			},
 			&expectedMultipleUserAuth,
 			false,
 		}, {
 			"Invalid location",
 			args{
-				&configInvalidLocation,
+				configInvalidLocation,
 			},
 			nil,
 			true,
 		}, {
 			"Invalid yaml file",
 			args{
-				&configInvalidConfigFileLocation,
+				configInvalidConfigFileLocation,
 			},
 			nil,
 			true,

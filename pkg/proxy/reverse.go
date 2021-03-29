@@ -28,17 +28,23 @@ type prometheusProxy struct {
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.checkRequest(r, p.prometheusServerURL)
+	if err := p.checkRequest(r, p.prometheusServerURL); err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	p.reverseProxy.ServeHTTP(w, r)
 	log.Printf("[TO]\t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
 }
 
 func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParameter string) error {
-	tenant := r.Context().Value(auth.Tenant)
+	if auth.IsAdmin(r.Context()) {
+		return nil
+	}
+	tenants := auth.TenantsFromCtx(r.Context())
 	matcher := &labels.Matcher{
 		Name:  p.label,
-		Type:  labels.MatchEqual,
-		Value: tenant.(string),
+		Type:  labels.MatchRegexp,
+		Value: fmt.Sprintf("(%s)", strings.Join(tenants, "|")),
 	}
 	var query string
 	val := r.FormValue(prometheusQueryParameter)
@@ -77,11 +83,11 @@ func (p *prometheusProxy) checkRequest(r *http.Request, prometheusServerURL *url
 	r.URL.Scheme = prometheusServerURL.Scheme
 	r.URL.Host = prometheusServerURL.Host
 	r.Header.Set("X-Forwarded-Host", r.Host)
-	p.ensureBasicAuth(r)
+	p.ensureEndpointBasicAuth(r)
 	return nil
 }
 
-func (p *prometheusProxy) ensureBasicAuth(r *http.Request) {
+func (p *prometheusProxy) ensureEndpointBasicAuth(r *http.Request) {
 	if p.prometheusServerURL.User == nil {
 		return
 	}

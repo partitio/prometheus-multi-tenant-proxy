@@ -47,27 +47,36 @@ The auth configuration is straightforward. Just create a YAML file `my-auth-conf
 ```golang
 // Authn Contains a list of users
 type Authn struct {
-	Users []User `yaml:"users"`
+	Admins []string       `yaml:"admins"`
+	StaticUsers []User    `yaml:"static_users"`
 }
 
 // User Identifies a user including the tenant
 type User struct {
 	Username  string `yaml:"username"`
 	Password  string `yaml:"password"`
-	Tenant    string `yaml:"tenant"`
+	Tenants   []string `yaml:"tenants"`
 }
 ```
 
 An example is available at [configs/multiple.user.yaml](configs/multiple.user.yaml) file:
 
 ```yaml
-users:
-  - username: User-a
-    password: pass-a
-    tenant: tenant-a
-  - username: User-b
-    password: pass-b
-    tenant: tenant-b
+admins:
+- admin
+static_users:
+- username: User-a
+  password: pass-a
+  tenants:
+  - tenant-a
+- username: User-b
+  password: pass-b
+  tenants:
+  - tenant-b
+- username: admin
+  password: admin
+  tenants:
+  - admin
 ```
 
 A tenant can contain multiple users. But a user is tied to a simple tenant.
