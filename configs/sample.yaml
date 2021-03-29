@@ -1,7 +1,7 @@
 users:
   - username: Happy
     password: Prometheus
-    namespace: default
+    tenant: default
   - username: Sad
     password: Prometheus
-    namespace: kube-system
+    tenant: kube-system

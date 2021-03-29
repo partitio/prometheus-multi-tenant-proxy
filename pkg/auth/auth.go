@@ -1,39 +1,37 @@
-package proxy
+package auth
 
 import (
 	"context"
 	"crypto/subtle"
 	"net/http"
-
-	"github.com/k8spin/prometheus-multi-tenant-proxy/internal/pkg"
 )
 
 type key int
 
 const (
-	//Namespace Key used to pass prometheus tenant id though the middleware context
-	Namespace key = iota
-	realm         = "Prometheus multi-tenant proxy"
+	// Tenant Key used to pass prometheus tenant id though the middleware context
+	Tenant key = iota
+	realm      = "Prometheus multi-tenant proxy"
 )
 
 // BasicAuth can be used as a middleware chain to authenticate users before proxying a request
-func BasicAuth(handler http.HandlerFunc, authConfig *pkg.Authn) http.HandlerFunc {
+func BasicAuth(handler http.Handler, authConfig *Authn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
-		authorized, namespace := isAuthorized(user, pass, authConfig)
+		authorized, tenant := isAuthorized(user, pass, authConfig)
 		if !ok || !authorized {
 			writeUnauthorisedResponse(w)
 			return
 		}
-		ctx := context.WithValue(r.Context(), Namespace, namespace)
-		handler(w, r.WithContext(ctx))
+		ctx := context.WithValue(r.Context(), Tenant, tenant)
+		handler.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
-func isAuthorized(user string, pass string, authConfig *pkg.Authn) (bool, string) {
+func isAuthorized(user string, pass string, authConfig *Authn) (bool, string) {
 	for _, v := range authConfig.Users {
 		if subtle.ConstantTimeCompare([]byte(user), []byte(v.Username)) == 1 && subtle.ConstantTimeCompare([]byte(pass), []byte(v.Password)) == 1 {
-			return true, v.Namespace
+			return true, v.Tenant
 		}
 	}
 	return false, ""

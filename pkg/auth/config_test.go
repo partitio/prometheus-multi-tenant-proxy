@@ -1,4 +1,4 @@
-package pkg
+package auth
 
 import (
 	"reflect"
@@ -13,27 +13,27 @@ func TestParseConfig(t *testing.T) {
 	expectedSampleAuth := Authn{
 		[]User{
 			{
-				Username:  "Happy",
-				Password:  "Prometheus",
-				Namespace: "default",
+				Username: "Happy",
+				Password: "Prometheus",
+				Tenant:   "default",
 			}, {
-				Username:  "Sad",
-				Password:  "Prometheus",
-				Namespace: "kube-system",
+				Username: "Sad",
+				Password: "Prometheus",
+				Tenant:   "kube-system",
 			},
 		},
 	}
 	expectedMultipleUserAuth := Authn{
 		[]User{
 			{
-				Username:  "User-a",
-				Password:  "pass-a",
-				Namespace: "tenant-a",
+				Username: "User-a",
+				Password: "pass-a",
+				Tenant:   "tenant-a",
 			},
 			{
-				Username:  "User-b",
-				Password:  "pass-b",
-				Namespace: "tenant-b",
+				Username: "User-b",
+				Password: "pass-b",
+				Tenant:   "tenant-b",
 			},
 		},
 	}

@@ -1,4 +1,4 @@
-package pkg
+package auth
 
 import (
 	"io/ioutil"
@@ -13,19 +13,19 @@ type Authn struct {
 
 // User Identifies a user including the tenant
 type User struct {
-	Username  string `yaml:"username"`
-	Password  string `yaml:"password"`
-	Namespace string `yaml:"namespace"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	Tenant   string `yaml:"tenant"`
 }
 
 // ParseConfig read a configuration file in the path `location` and returns an Authn object
-func ParseConfig(location *string) (*Authn, error) {
-	data, err := ioutil.ReadFile(*location)
+func ParseConfig(location string) (*Authn, error) {
+	data, err := ioutil.ReadFile(location)
 	if err != nil {
 		return nil, err
 	}
 	authn := Authn{}
-	err = yaml.Unmarshal([]byte(data), &authn)
+	err = yaml.Unmarshal(data, &authn)
 	if err != nil {
 		return nil, err
 	}

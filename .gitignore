@@ -16,3 +16,4 @@ cmd/prometheus-multi-tenant-proxy/prometheus-multi-tenant-proxy
 
 # Jetbrains
 .idea
+config.yaml

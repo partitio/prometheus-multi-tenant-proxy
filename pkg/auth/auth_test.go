@@ -1,30 +1,28 @@
-package proxy
+package auth
 
 import (
 	"testing"
-
-	"github.com/k8spin/prometheus-multi-tenant-proxy/internal/pkg"
 )
 
 func Test_isAuthorized(t *testing.T) {
-	authConfig := pkg.Authn{
-		Users: []pkg.User{
+	authConfig := Authn{
+		Users: []User{
 			{
-				Username:  "User-a",
-				Password:  "pass-a",
-				Namespace: "tenant-a",
+				Username: "User-a",
+				Password: "pass-a",
+				Tenant:   "tenant-a",
 			},
 			{
-				Username:  "User-b",
-				Password:  "pass-b",
-				Namespace: "tenant-b",
+				Username: "User-b",
+				Password: "pass-b",
+				Tenant:   "tenant-b",
 			},
 		},
 	}
 	type args struct {
 		user       string
 		pass       string
-		authConfig *pkg.Authn
+		authConfig *Authn
 	}
 	tests := []struct {
 		name  string

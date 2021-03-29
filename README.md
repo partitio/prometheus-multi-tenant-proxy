@@ -13,7 +13,7 @@ in a multi-tenant way.
 
 This project has some reference from the [prometheus label injector from RedHat](https://github.com/openshift/prom-label-proxy)
 
-The proxy enforces the `namespace` label in a given PromQL query while providing a basic auth layer.
+The proxy enforces a **tenant** (defaults to `tenant`) **label** in a given PromQL query while providing a basic auth layer.
 
 ## What is it?
 
@@ -54,7 +54,7 @@ type Authn struct {
 type User struct {
 	Username  string `yaml:"username"`
 	Password  string `yaml:"password"`
-	Namespace string `yaml:"namespace"`
+	Tenant    string `yaml:"tenant"`
 }
 ```
 
@@ -64,10 +64,10 @@ An example is available at [configs/multiple.user.yaml](configs/multiple.user.ya
 users:
   - username: User-a
     password: pass-a
-    namespace: tenant-a
+    tenant: tenant-a
   - username: User-b
     password: pass-b
-    namespace: tenant-b
+    tenant: tenant-b
 ```
 
 A tenant can contain multiple users. But a user is tied to a simple tenant.
