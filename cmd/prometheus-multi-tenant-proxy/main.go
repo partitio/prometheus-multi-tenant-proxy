@@ -20,6 +20,12 @@ var (
 )
 
 func main() {
+	var (
+		port int
+		prom string
+		config string
+		label string
+	)
 	app := cli.NewApp()
 	app.Name = "Prometheus multi-tenant proxy"
 	app.Usage = "Makes your Prometheus server multi tenant"
@@ -37,28 +43,39 @@ func main() {
 					Name:  "port",
 					Usage: "Port to expose this prometheus proxy",
 					Value: 9092,
+					EnvVars: []string{"PROXY_PORT"},
+					Destination: &port,
 				}, &cli.StringFlag{
 					Name:  "prometheus-endpoint",
 					Usage: "Prometheus server endpoint",
 					Value: "http://localhost:9091",
+					EnvVars: []string{"PROMETHEUS_ENDPOINT"},
+					Destination: &prom,
 				}, &cli.StringFlag{
 					Name:  "auth-config",
 					Usage: "AuthN yaml configuration file path",
 					Value: "authn.yaml",
+					EnvVars: []string{"AUTH_CONFIG"},
+					Destination: &config,
 				}, &cli.StringFlag{
 					Name: "tenant-label",
 					Usage: "Label to match the tenant against",
 					Value: "tenant",
+					EnvVars: []string{"TENANT_LABEL"},
+					Destination: &label,
 				},
 			},
-			Action: func(c *cli.Context) error {
-				prometheusServerURL, _ := url.Parse(c.String("prometheus-endpoint"))
-				serveAt := fmt.Sprintf(":%d", c.Int("port"))
-				authConfig, err := auth.ParseConfig(c.String("auth-config"))
+			Action: func(_ *cli.Context) error {
+				prometheusServerURL, err := url.Parse(prom)
+				if err != nil {
+					log.Fatalf("invalid prometheus endpoint: %v\n", err)
+				}
+				serveAt := fmt.Sprintf(":%d", port)
+				authConfig, err := auth.ParseConfig(config)
 				if err != nil {
 					log.Fatalf("failed to parse config: %v\n", err)
 				}
-				handler := proxy.ReversePrometheus(prometheusServerURL, c.String("tenant-label"))
+				handler := proxy.ReversePrometheus(prometheusServerURL, label)
 				http.Handle("/-/healthy", LogRequest(handler))
 				http.Handle("/-/ready", LogRequest(handler))
 				http.Handle("/", LogRequest(auth.BasicAuth(handler, authConfig)))
