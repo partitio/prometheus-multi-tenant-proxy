@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -28,9 +30,8 @@ type prometheusProxy struct {
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := p.checkRequest(r, p.prometheusServerURL); err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+	if err := p.checkRequest(r); err != nil {
+		log.Printf("failed to check request: %v\n", err)
 	}
 	p.reverseProxy.ServeHTTP(w, r)
 	log.Printf("[TO]\t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
@@ -38,8 +39,16 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParameter string) error {
 	if auth.IsAdmin(r.Context()) {
+		log.Println("skipping admin request")
 		return nil
 	}
+	// duplicate request body as non GET requests may read it to parse the form
+	var original, discard bytes.Buffer
+	if _, err := io.Copy(io.MultiWriter(&original, &discard), r.Body); err != nil{
+		return err
+	}
+	// set the copy
+	r.Body = io.NopCloser(&discard)
 	tenants := auth.TenantsFromCtx(r.Context())
 	matcher := &labels.Matcher{
 		Name:  p.label,
@@ -65,10 +74,12 @@ func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParamete
 	q := r.URL.Query()
 	q.Set(prometheusQueryParameter, query)
 	r.URL.RawQuery = q.Encode()
+	// restore the original
+	r.Body = io.NopCloser(&original)
 	return nil
 }
 
-func (p *prometheusProxy) checkRequest(r *http.Request, prometheusServerURL *url.URL) error {
+func (p *prometheusProxy) checkRequest(r *http.Request) error {
 	if r.URL.Path == "/api/v1/query" || r.URL.Path == "/api/v1/query_range" {
 		if err := p.modifyRequest(r, "query"); err != nil {
 			return err
@@ -79,9 +90,9 @@ func (p *prometheusProxy) checkRequest(r *http.Request, prometheusServerURL *url
 			return err
 		}
 	}
-	r.Host = prometheusServerURL.Host
-	r.URL.Scheme = prometheusServerURL.Scheme
-	r.URL.Host = prometheusServerURL.Host
+	r.Host = p.prometheusServerURL.Host
+	r.URL.Scheme = p.prometheusServerURL.Scheme
+	r.URL.Host = p.prometheusServerURL.Host
 	r.Header.Set("X-Forwarded-Host", r.Host)
 	p.ensureEndpointBasicAuth(r)
 	return nil
