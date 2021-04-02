@@ -1,4 +1,4 @@
-package auth
+package config
 
 import (
 	"io/ioutil"
@@ -9,6 +9,7 @@ import (
 // Authn Contains a list of users
 type Authn struct {
 	StaticUsers []User   `yaml:"static_users"`
+	OIDC        *OIDC    `yaml:"oidc"`
 	Admins      []string `yaml:"admins"`
 }
 
@@ -19,8 +20,13 @@ type User struct {
 	Tenants  []string `yaml:"tenants"`
 }
 
-// ParseConfig read a configuration file in the path `location` and returns an Authn object
-func ParseConfig(location string) (*Authn, error) {
+type OIDC struct {
+	IssuerURL string `yaml:"issuer_url"`
+	ClientID  string `yaml:"client_id"`
+}
+
+// Parse read a configuration file in the path `location` and returns an Authn object
+func Parse(location string) (*Authn, error) {
 	data, err := ioutil.ReadFile(location)
 	if err != nil {
 		return nil, err

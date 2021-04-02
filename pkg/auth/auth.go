@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
-	"crypto/subtle"
 	"net/http"
+
+	"github.com/k8spin/prometheus-multi-tenant-proxy/pkg/config"
 )
+
+type Method string
 
 type key int
 
@@ -15,34 +18,16 @@ const (
 	realm = "Prometheus multi-tenant proxy"
 )
 
-// BasicAuth can be used as a middleware chain to authenticate users before proxying a request
-func BasicAuth(handler http.Handler, authConfig *Authn) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, pass, ok := r.BasicAuth()
-		authorized, tenants := isAuthorized(user, pass, authConfig)
-		if !ok || !authorized {
-			writeUnauthorisedResponse(w)
-			return
-		}
-		ctx := context.WithValue(r.Context(), tenantsKey, tenants)
-		ctx = context.WithValue(ctx, adminsKey, authConfig.Admins)
-		handler.ServeHTTP(w, r.WithContext(ctx))
-	}
+type ProviderFactory func(config *config.Authn) (Provider, error)
+
+type Provider interface {
+	Authenticate(handler http.Handler) http.HandlerFunc
 }
 
-func isAuthorized(user string, pass string, authConfig *Authn) (bool, []string) {
-	for _, v := range authConfig.StaticUsers {
-		if subtle.ConstantTimeCompare([]byte(user), []byte(v.Username)) == 1 && subtle.ConstantTimeCompare([]byte(pass), []byte(v.Password)) == 1 {
-			return true, v.Tenants
-		}
-	}
-	return false, nil
-}
+type ProviderFunc func(handler http.Handler) http.HandlerFunc
 
-func writeUnauthorisedResponse(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
-	w.WriteHeader(401)
-	w.Write([]byte("Unauthorised\n"))
+func (f ProviderFunc) Authenticate(handler http.Handler) http.HandlerFunc {
+	return f(handler)
 }
 
 func TenantsFromCtx(ctx context.Context) []string {

@@ -34,7 +34,8 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to check request: %v\n", err)
 	}
 	p.reverseProxy.ServeHTTP(w, r)
-	log.Printf("[TO]\t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+	r.URL.User = nil
+	log.Printf("[TO (%v)]\t%s %s %s\n", strings.Join(auth.TenantsFromCtx(r.Context()), ","), r.RemoteAddr, r.Method, r.URL)
 }
 
 func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParameter string) error {
@@ -44,7 +45,7 @@ func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParamete
 	}
 	// duplicate request body as non GET requests may read it to parse the form
 	var original, discard bytes.Buffer
-	if _, err := io.Copy(io.MultiWriter(&original, &discard), r.Body); err != nil{
+	if _, err := io.Copy(io.MultiWriter(&original, &discard), r.Body); err != nil {
 		return err
 	}
 	// set the copy

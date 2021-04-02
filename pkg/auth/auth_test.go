@@ -3,11 +3,13 @@ package auth
 import (
 	"strings"
 	"testing"
+
+	"github.com/k8spin/prometheus-multi-tenant-proxy/pkg/config"
 )
 
 func Test_isAuthorized(t *testing.T) {
-	authConfig := Authn{
-		StaticUsers: []User{
+	authConfig := config.Authn{
+		StaticUsers: []config.User{
 			{
 				Username: "User-a",
 				Password: "pass-a",
@@ -23,7 +25,7 @@ func Test_isAuthorized(t *testing.T) {
 	type args struct {
 		user       string
 		pass       string
-		authConfig *Authn
+		authConfig *config.Authn
 	}
 	tests := []struct {
 		name  string

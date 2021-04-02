@@ -1,4 +1,4 @@
-package auth
+package config
 
 import (
 	"reflect"
@@ -84,13 +84,13 @@ func TestParseConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseConfig(tt.args.location)
+			got, err := Parse(tt.args.location)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseConfig() = %v, want %v", got, tt.want)
+				t.Errorf("Parse() = %v, want %v", got, tt.want)
 			}
 		})
 	}
