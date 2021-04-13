@@ -28,6 +28,9 @@ func NewOIDC(config *config.Authn) (Provider, error) {
 	if config.OIDC == nil {
 		return nil, errors.New("no oidc config provided")
 	}
+	if config.OIDC.CookieName == "" {
+		config.OIDC.CookieName = "id_token"
+	}
 	// Initialize a provider by specifying dex's issuer URL.
 	provider, err := oidc.NewProvider(context.Background(), config.OIDC.IssuerURL)
 	if err != nil {
@@ -45,15 +48,23 @@ type oidcProvider struct {
 
 func (o *oidcProvider) Authenticate(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		h := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if h == "" {
+		var tk string
+		if c, err := r.Cookie(o.config.OIDC.CookieName); err == nil {
+			tk = c.Value
+			log.Println("Token source: Cookie")
+		} else {
+			tk = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			log.Println("Token source: Header")
+		}
+		if tk == "" {
 			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("[TO]\t%s Unauthorized\n", r.RemoteAddr)
+			log.Printf("[TO]\t%s Unauthorized: no Bearer token\n", r.RemoteAddr)
 			return
 		}
-		u, err := o.authorize(r.Context(), h)
+		u, err := o.authorize(r.Context(), tk)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("[TO]\t%s Unauthorized: %v\n", r.RemoteAddr, err)
 			return
 		}
 		ctx := context.WithValue(r.Context(), tenantsKey, u.groups)

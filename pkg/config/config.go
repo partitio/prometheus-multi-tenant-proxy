@@ -21,8 +21,9 @@ type User struct {
 }
 
 type OIDC struct {
-	IssuerURL string `yaml:"issuer_url"`
-	ClientID  string `yaml:"client_id"`
+	IssuerURL  string `yaml:"issuer_url"`
+	ClientID   string `yaml:"client_id"`
+	CookieName string `yaml:"cookie_name"`
 }
 
 // Parse read a configuration file in the path `location` and returns an Authn object
