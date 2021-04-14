@@ -30,8 +30,12 @@ type prometheusProxy struct {
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := p.checkRequest(r); err != nil {
+	ok, err := p.checkRequest(r)
+	if err != nil {
 		log.Printf("failed to check request: %v\n", err)
+	}
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	}
 	p.reverseProxy.ServeHTTP(w, r)
 	r.URL.User = nil
@@ -39,10 +43,6 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParameter string) error {
-	if auth.IsAdmin(r.Context()) {
-		log.Println("skipping admin request")
-		return nil
-	}
 	// duplicate request body as non GET requests may read it to parse the form
 	var original, discard bytes.Buffer
 	if _, err := io.Copy(io.MultiWriter(&original, &discard), r.Body); err != nil {
@@ -80,23 +80,30 @@ func (p *prometheusProxy) modifyRequest(r *http.Request, prometheusQueryParamete
 	return nil
 }
 
-func (p *prometheusProxy) checkRequest(r *http.Request) error {
-	if r.URL.Path == "/api/v1/query" || r.URL.Path == "/api/v1/query_range" {
+func (p *prometheusProxy) checkRequest(r *http.Request) (bool, error) {
+	if auth.IsAdmin(r.Context()) {
+		log.Println("skipping admin request")
+		return true, nil
+	}
+	switch {
+	case r.URL.Path == "/api/v1/query" || r.URL.Path == "/api/v1/query_range":
 		if err := p.modifyRequest(r, "query"); err != nil {
-			return err
+			return true, err
 		}
-	}
-	if r.URL.Path == "/api/v1/series" || r.URL.Path == "/federate" || strings.HasPrefix(r.URL.Path, "/api/v1/label") {
+	case r.URL.Path == "/api/v1/series" || r.URL.Path == "/federate" || strings.HasPrefix(r.URL.Path, "/api/v1/label"):
 		if err := p.modifyRequest(r, "match[]"); err != nil {
-			return err
+			return true, err
 		}
+	case strings.HasPrefix(r.URL.Path, "/api/v1"):
+		return false, nil
 	}
+
 	r.Host = p.prometheusServerURL.Host
 	r.URL.Scheme = p.prometheusServerURL.Scheme
 	r.URL.Host = p.prometheusServerURL.Host
 	r.Header.Set("X-Forwarded-Host", r.Host)
 	p.ensureEndpointBasicAuth(r)
-	return nil
+	return true, nil
 }
 
 func (p *prometheusProxy) ensureEndpointBasicAuth(r *http.Request) {

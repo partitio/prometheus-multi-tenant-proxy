@@ -49,12 +49,11 @@ type oidcProvider struct {
 func (o *oidcProvider) Authenticate(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var tk string
-		if c, err := r.Cookie(o.config.OIDC.CookieName); err == nil {
+		if tk = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); tk != "" {
+			log.Println("Token source: Header")
+		} else if c, err := r.Cookie(o.config.OIDC.CookieName); err == nil {
 			tk = c.Value
 			log.Println("Token source: Cookie")
-		} else {
-			tk = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			log.Println("Token source: Header")
 		}
 		if tk == "" {
 			w.WriteHeader(http.StatusUnauthorized)
