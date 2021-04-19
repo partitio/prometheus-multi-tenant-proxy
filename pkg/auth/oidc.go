@@ -36,8 +36,12 @@ func NewOIDC(config *config.Authn) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
+	c := &oidc.Config{ClientID: config.OIDC.ClientID}
+	if config.OIDC.ClientID == "" {
+		c.SkipClientIDCheck = true
+	}
 	// Create an ID token parser, but only trust ID tokens issued to "example-app"
-	idTokenVerifier := provider.Verifier(&oidc.Config{ClientID: config.OIDC.ClientID})
+	idTokenVerifier := provider.Verifier(c)
 	return &oidcProvider{config: config, verifier: idTokenVerifier}, nil
 }
 
