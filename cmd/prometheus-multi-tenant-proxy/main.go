@@ -97,7 +97,10 @@ func main() {
 				if err != nil {
 					log.Fatalf("failed to initalize auth provider %s: %v", authMethod, err)
 				}
-				handler := proxy.ReversePrometheus(prometheusServerURL, label)
+				handler, err := proxy.ReversePrometheus(prometheusServerURL, label)
+				if err != nil {
+				    log.Fatalf("init proxy: %v", err)
+				}
 				http.Handle("/-/healthy", LogRequest(handler))
 				http.Handle("/-/ready", LogRequest(handler))
 				http.Handle("/", LogRequest(provider.Authenticate(handler)))
