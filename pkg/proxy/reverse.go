@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,9 +19,26 @@ import (
 	"github.com/k8spin/prometheus-multi-tenant-proxy/pkg/auth"
 )
 
+var (
+	passthrough = []string {
+		"/api/v2/receivers",
+		"/api/v2/groups",
+	}
+)
+
 // ReversePrometheus
-func ReversePrometheus(prometheusServerURL *url.URL, label string) (http.Handler, error) {
-	reverseProxy := httputil.NewSingleHostReverseProxy(prometheusServerURL)
+func ReversePrometheus(prometheusServerURL *url.URL, alertmanagerServerURL *url.URL, label string) (http.Handler, error) {
+	if prometheusServerURL == nil {
+		return nil, errors.New("prometheus server url must be not nil")
+	}
+	var proxyURL *url.URL
+	switch {
+	case alertmanagerServerURL != nil:
+		proxyURL = alertmanagerServerURL
+	default:
+		proxyURL = prometheusServerURL
+	}
+	reverseProxy := httputil.NewSingleHostReverseProxy(proxyURL)
 	reverseProxy.ModifyResponse = func(w *http.Response) error {
 		// remove all cors headers to prevent duplicated header when proxied
 		for _, v := range []string{"Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers"} {
@@ -28,7 +46,7 @@ func ReversePrometheus(prometheusServerURL *url.URL, label string) (http.Handler
 		}
 		return nil
 	}
-	labelProxy, err := injectproxy.NewRoutes(prometheusServerURL, label, injectproxy.WithEnabledLabelsAPI())
+	labelProxy, err := injectproxy.NewRoutes(proxyURL, label, injectproxy.WithEnabledLabelsAPI(), injectproxy.WithPassthroughPaths(passthrough))
 	if err != nil {
 		return nil, err
 	}
@@ -44,12 +62,13 @@ func ReversePrometheus(prometheusServerURL *url.URL, label string) (http.Handler
 }
 
 type prometheusProxy struct {
-	prometheusServerURL *url.URL
-	reverseProxy        *httputil.ReverseProxy
-	labelProxy          http.Handler
-	label               string
-	cache               *cache.Cache
-	mu                  sync.RWMutex
+	prometheusServerURL   *url.URL
+	alertmanagerServerURL *url.URL
+	reverseProxy          *httputil.ReverseProxy
+	labelProxy            http.Handler
+	label                 string
+	cache                 *cache.Cache
+	mu                    sync.RWMutex
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -68,9 +87,11 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	q := r.URL.Query()
-	q.Set(p.label, tenant)
-	r.URL.RawQuery = q.Encode()
+	if !isPassthrough(r.URL) {
+		q := r.URL.Query()
+		q.Set(p.label, tenant)
+		r.URL.RawQuery = q.Encode()
+	}
 	p.ensureEndpointBasicAuth(r)
 	p.labelProxy.ServeHTTP(w, r)
 	r.URL.User = nil
@@ -137,4 +158,16 @@ func (p *prometheusProxy) labelValues() ([]string, error) {
 	}
 	p.cache.Set(values, r.Data, 5*time.Second)
 	return r.Data, nil
+}
+
+func isPassthrough(url *url.URL) bool {
+	if url == nil {
+		return false
+	}
+	for _, v := range passthrough {
+		if strings.HasPrefix(url.Path, v) {
+			return true
+		}
+	}
+	return false
 }

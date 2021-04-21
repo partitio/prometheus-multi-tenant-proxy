@@ -25,6 +25,7 @@ func main() {
 	var (
 		port       int
 		prom       string
+		alert      string
 		config     string
 		authMethod string
 		label      string
@@ -51,10 +52,18 @@ func main() {
 				}, &cli.StringFlag{
 					Name:        "prometheus-endpoint",
 					Usage:       "Prometheus server endpoint",
-					Value:       "http://localhost:9091",
+					Value:       "http://localhost:9090",
 					EnvVars:     []string{"PROMETHEUS_ENDPOINT"},
 					Destination: &prom,
-				}, &cli.StringFlag{
+					Required:    true,
+				},
+				&cli.StringFlag{
+					Name:        "alertmanager-endpoint",
+					Usage:       "Alertmanager server endpoint, if defined requests will be proxied to alertmanager",
+					EnvVars:     []string{"ALERTMANAGER_ENDPOINT"},
+					Destination: &alert,
+				},
+				&cli.StringFlag{
 					Name:        "auth-config",
 					Usage:       "AuthN yaml configuration file path",
 					Value:       "authn.yaml",
@@ -79,6 +88,12 @@ func main() {
 				if err != nil {
 					log.Fatalf("invalid prometheus endpoint: %v\n", err)
 				}
+				var alertmanagerServerURL *url.URL
+				if alert != "" {
+					if alertmanagerServerURL, err = url.Parse(alert); err != nil {
+						log.Fatalf("invalid alertmanager endpoint: %v\n", err)
+					}
+				}
 				serveAt := fmt.Sprintf(":%d", port)
 				authConfig, err := config2.Parse(config)
 				if err != nil {
@@ -97,9 +112,9 @@ func main() {
 				if err != nil {
 					log.Fatalf("failed to initalize auth provider %s: %v", authMethod, err)
 				}
-				handler, err := proxy.ReversePrometheus(prometheusServerURL, label)
+				handler, err := proxy.ReversePrometheus(prometheusServerURL, alertmanagerServerURL, label)
 				if err != nil {
-				    log.Fatalf("init proxy: %v", err)
+					log.Fatalf("init proxy: %v", err)
 				}
 				http.Handle("/-/healthy", LogRequest(handler))
 				http.Handle("/-/ready", LogRequest(handler))
