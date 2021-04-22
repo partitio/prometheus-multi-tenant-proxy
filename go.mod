@@ -11,5 +11,5 @@ require (
 )
 
 replace (
-	github.com/prometheus-community/prom-label-proxy => github.com/partitio/prom-label-proxy v0.3.1-0.20210421100350-5ac45ccfdd2d
+	github.com/prometheus-community/prom-label-proxy => github.com/partitio/prom-label-proxy v0.3.2
 )

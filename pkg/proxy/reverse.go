@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	passthrough = []string {
+	passthrough = []string{
 		"/api/v2/receivers",
 		"/api/v2/groups",
 	}
@@ -46,7 +46,13 @@ func ReversePrometheus(prometheusServerURL *url.URL, alertmanagerServerURL *url.
 		}
 		return nil
 	}
-	labelProxy, err := injectproxy.NewRoutes(proxyURL, label, injectproxy.WithEnabledLabelsAPI(), injectproxy.WithPassthroughPaths(passthrough))
+	labelProxy, err := injectproxy.NewRoutes(
+		proxyURL,
+		label,
+		injectproxy.WithEnabledLabelsAPI(),
+		injectproxy.WithPassthroughPaths(passthrough),
+		injectproxy.WithDisableRulesFilter(true),
+	)
 	if err != nil {
 		return nil, err
 	}
