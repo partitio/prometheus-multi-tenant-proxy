@@ -10,6 +10,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-replace (
-	github.com/prometheus-community/prom-label-proxy => github.com/partitio/prom-label-proxy v0.3.2
-)
+replace github.com/prometheus-community/prom-label-proxy => github.com/partitio/prom-label-proxy v0.3.2

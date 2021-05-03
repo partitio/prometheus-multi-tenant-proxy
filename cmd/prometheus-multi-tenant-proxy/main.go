@@ -23,12 +23,13 @@ var (
 
 func main() {
 	var (
-		port       int
-		prom       string
-		alert      string
-		config     string
-		authMethod string
-		label      string
+		port            int
+		prom            string
+		alert           string
+		config          string
+		authMethod      string
+		label           string
+		enableLabelAPIs bool
 	)
 	app := cli.NewApp()
 	app.Name = "Prometheus multi-tenant proxy"
@@ -81,6 +82,16 @@ func main() {
 					Value:       "tenant",
 					EnvVars:     []string{"TENANT_LABEL"},
 					Destination: &label,
+				}, &cli.BoolFlag{
+					Name: "enable-label-apis",
+					Usage: "When specified proxy allows to inject label to label APIs like /api/v1/labels and " +
+						"/api/v1/label/<name>/values.\"+\n\t\t\"NOTE: Enable with care. Selection of matcher is still " +
+						"in development, see https://github.com/thanos-io/thanos/issues/3351 and " +
+						"https://github.com/prometheus/prometheus/issues/6178. If enabled and\"+\n\t\t\"any labels " +
+						"endpoint does not support selectors, injected matcher will be silently dropped.",
+					Value:       false,
+					EnvVars:     []string{"ENABLE_LABEL_APIS"},
+					Destination: &enableLabelAPIs,
 				},
 			},
 			Action: func(_ *cli.Context) error {
@@ -112,7 +123,12 @@ func main() {
 				if err != nil {
 					log.Fatalf("failed to initalize auth provider %s: %v", authMethod, err)
 				}
-				handler, err := proxy.ReversePrometheus(prometheusServerURL, alertmanagerServerURL, label)
+				handler, err := proxy.ReversePrometheus(
+					proxy.WithPrometheus(prometheusServerURL),
+					proxy.WithAlertmanager(alertmanagerServerURL),
+					proxy.WithLabel(label),
+					proxy.WithLabelAPI(enableLabelAPIs),
+				)
 				if err != nil {
 					log.Fatalf("init proxy: %v", err)
 				}

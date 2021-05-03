@@ -27,16 +27,20 @@ var (
 )
 
 // ReversePrometheus
-func ReversePrometheus(prometheusServerURL *url.URL, alertmanagerServerURL *url.URL, label string) (http.Handler, error) {
-	if prometheusServerURL == nil {
+func ReversePrometheus(opts ...Option) (http.Handler, error) {
+	o := options{}
+	for _, v := range opts {
+		v(&o)
+	}
+	if o.prometheusServerURL == nil {
 		return nil, errors.New("prometheus server url must be not nil")
 	}
 	var proxyURL *url.URL
 	switch {
-	case alertmanagerServerURL != nil:
-		proxyURL = alertmanagerServerURL
+	case o.alertmanagerServerURL != nil:
+		proxyURL = o.alertmanagerServerURL
 	default:
-		proxyURL = prometheusServerURL
+		proxyURL = o.prometheusServerURL
 	}
 	reverseProxy := httputil.NewSingleHostReverseProxy(proxyURL)
 	reverseProxy.ModifyResponse = func(w *http.Response) error {
@@ -46,35 +50,37 @@ func ReversePrometheus(prometheusServerURL *url.URL, alertmanagerServerURL *url.
 		}
 		return nil
 	}
-	labelProxy, err := injectproxy.NewRoutes(
-		proxyURL,
-		label,
-		injectproxy.WithEnabledLabelsAPI(),
+	proxyOpts := []injectproxy.Option{
 		injectproxy.WithPassthroughPaths(passthrough),
 		injectproxy.WithDisableRulesFilter(true),
+	}
+	if o.labelAPIEnabled {
+		proxyOpts = append(proxyOpts, injectproxy.WithEnabledLabelsAPI())
+	}
+	labelProxy, err := injectproxy.NewRoutes(
+		proxyURL,
+		o.label,
+		proxyOpts...,
 	)
 	if err != nil {
 		return nil, err
 	}
 	cache := cache.New(5*time.Second, 10*time.Second)
 	proxy := &prometheusProxy{
-		prometheusServerURL: prometheusServerURL,
-		reverseProxy:        reverseProxy,
-		labelProxy:          labelProxy,
-		label:               label,
-		cache:               cache,
+		options:      o,
+		reverseProxy: reverseProxy,
+		labelProxy:   labelProxy,
+		cache:        cache,
 	}
 	return proxy, nil
 }
 
 type prometheusProxy struct {
-	prometheusServerURL   *url.URL
-	alertmanagerServerURL *url.URL
-	reverseProxy          *httputil.ReverseProxy
-	labelProxy            http.Handler
-	label                 string
-	cache                 *cache.Cache
-	mu                    sync.RWMutex
+	options
+	reverseProxy *httputil.ReverseProxy
+	labelProxy   http.Handler
+	cache        *cache.Cache
+	mu           sync.RWMutex
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +96,7 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	tenant, err := p.tenant(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	if !isPassthrough(r.URL) {
@@ -130,7 +136,7 @@ func (p *prometheusProxy) tenant(ctx context.Context) (string, error) {
 			}
 		}
 	}
-	return "partitio", nil
+	return "", errors.New("tenant not found")
 }
 
 const (
