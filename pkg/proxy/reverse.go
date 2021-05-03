@@ -54,7 +54,8 @@ func ReversePrometheus(opts ...Option) (http.Handler, error) {
 		injectproxy.WithPassthroughPaths(passthrough),
 		injectproxy.WithDisableRulesFilter(true),
 	}
-	if o.labelAPIEnabled {
+	if o.labelsAPIEnabled {
+		log.Println("labels api enabled")
 		proxyOpts = append(proxyOpts, injectproxy.WithEnabledLabelsAPI())
 	}
 	labelProxy, err := injectproxy.NewRoutes(
@@ -96,6 +97,7 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	tenant, err := p.tenant(r.Context())
 	if err != nil {
+		log.Printf("get tenant error: %v\n", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

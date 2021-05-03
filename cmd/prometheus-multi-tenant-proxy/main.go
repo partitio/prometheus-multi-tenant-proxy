@@ -29,7 +29,7 @@ func main() {
 		config          string
 		authMethod      string
 		label           string
-		enableLabelAPIs bool
+		enableLabelsAPI bool
 	)
 	app := cli.NewApp()
 	app.Name = "Prometheus multi-tenant proxy"
@@ -91,7 +91,7 @@ func main() {
 						"endpoint does not support selectors, injected matcher will be silently dropped.",
 					Value:       false,
 					EnvVars:     []string{"ENABLE_LABEL_APIS"},
-					Destination: &enableLabelAPIs,
+					Destination: &enableLabelsAPI,
 				},
 			},
 			Action: func(_ *cli.Context) error {
@@ -127,7 +127,7 @@ func main() {
 					proxy.WithPrometheus(prometheusServerURL),
 					proxy.WithAlertmanager(alertmanagerServerURL),
 					proxy.WithLabel(label),
-					proxy.WithLabelAPI(enableLabelAPIs),
+					proxy.WithLabelsAPI(enableLabelsAPI),
 				)
 				if err != nil {
 					log.Fatalf("init proxy: %v", err)
