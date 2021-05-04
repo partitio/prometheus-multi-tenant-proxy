@@ -9,6 +9,7 @@ type Option func(o *options)
 type options struct {
 	prometheusServerURL   *url.URL
 	alertmanagerServerURL *url.URL
+	labelsAPIEndpoint     *url.URL
 	label                 string
 	labelsAPIEnabled      bool
 }
@@ -34,5 +35,11 @@ func WithLabel(label string) Option {
 func WithLabelsAPI(enabled bool) Option {
 	return func(o *options) {
 		o.labelsAPIEnabled = enabled
+	}
+}
+
+func WithLabelsAPIEndpoint(url *url.URL) Option {
+	return func(o *options) {
+		o.labelsAPIEndpoint = url
 	}
 }

@@ -54,11 +54,11 @@ func ReversePrometheus(opts ...Option) (http.Handler, error) {
 		injectproxy.WithPassthroughPaths(passthrough),
 		injectproxy.WithDisableRulesFilter(true),
 	}
-	if o.labelsAPIEnabled {
+	if o.labelsAPIEnabled || o.labelsAPIEndpoint != nil {
 		log.Println("labels api enabled")
 		proxyOpts = append(proxyOpts, injectproxy.WithEnabledLabelsAPI())
 	}
-	labelProxy, err := injectproxy.NewRoutes(
+	injectProxy, err := injectproxy.NewRoutes(
 		proxyURL,
 		o.label,
 		proxyOpts...,
@@ -70,18 +70,27 @@ func ReversePrometheus(opts ...Option) (http.Handler, error) {
 	proxy := &prometheusProxy{
 		options:      o,
 		reverseProxy: reverseProxy,
-		labelProxy:   labelProxy,
+		injectProxy:  injectProxy,
 		cache:        cache,
+	}
+	if o.labelsAPIEndpoint == nil {
+		return proxy, nil
+	}
+
+	proxy.labelsAPIProxy, err = injectproxy.NewRoutes(o.labelsAPIEndpoint, o.label, proxyOpts...)
+	if err != nil {
+	    return nil, err
 	}
 	return proxy, nil
 }
 
 type prometheusProxy struct {
 	options
-	reverseProxy *httputil.ReverseProxy
-	labelProxy   http.Handler
-	cache        *cache.Cache
-	mu           sync.RWMutex
+	reverseProxy   *httputil.ReverseProxy
+	injectProxy    http.Handler
+	labelsAPIProxy http.Handler
+	cache          *cache.Cache
+	mu             sync.RWMutex
 }
 
 func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -106,23 +115,13 @@ func (p *prometheusProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		q.Set(p.label, tenant)
 		r.URL.RawQuery = q.Encode()
 	}
-	p.ensureEndpointBasicAuth(r)
-	p.labelProxy.ServeHTTP(w, r)
+	if p.labelsAPIProxy != nil && strings.HasPrefix(r.URL.Path, "/api/v1/label") {
+		p.labelsAPIProxy.ServeHTTP(w, r)
+	} else {
+		p.injectProxy.ServeHTTP(w, r)
+	}
 	r.URL.User = nil
 	log.Printf("[TO (%v)]\t%s %s %s\n", tenant, r.RemoteAddr, r.Method, r.URL)
-}
-
-func (p *prometheusProxy) ensureEndpointBasicAuth(r *http.Request) {
-	if p.prometheusServerURL.User == nil {
-		return
-	}
-	pass, ok := p.prometheusServerURL.User.Password()
-	if !ok {
-		return
-	}
-	r.Header.Del("Authorization")
-	r.SetBasicAuth(p.prometheusServerURL.User.Username(), pass)
-	r.URL.User = p.prometheusServerURL.User
 }
 
 func (p *prometheusProxy) tenant(ctx context.Context) (string, error) {

@@ -23,13 +23,14 @@ var (
 
 func main() {
 	var (
-		port            int
-		prom            string
-		alert           string
-		config          string
-		authMethod      string
-		label           string
-		enableLabelsAPI bool
+		port              int
+		prom              string
+		alert             string
+		config            string
+		authMethod        string
+		label             string
+		enableLabelsAPI   bool
+		labelsAPI string
 	)
 	app := cli.NewApp()
 	app.Name = "Prometheus multi-tenant proxy"
@@ -85,13 +86,20 @@ func main() {
 				}, &cli.BoolFlag{
 					Name: "enable-label-apis",
 					Usage: "When specified proxy allows to inject label to label APIs like /api/v1/labels and " +
-						"/api/v1/label/<name>/values.\"+\n\t\t\"NOTE: Enable with care. Selection of matcher is still " +
+						"/api/v1/label/<name>/values.\n\tNOTE: Enable with care. Selection of matcher is still " +
 						"in development, see https://github.com/thanos-io/thanos/issues/3351 and " +
-						"https://github.com/prometheus/prometheus/issues/6178. If enabled and\"+\n\t\t\"any labels " +
+						"https://github.com/prometheus/prometheus/issues/6178. If enabled and any labels " +
 						"endpoint does not support selectors, injected matcher will be silently dropped.",
 					Value:       false,
 					EnvVars:     []string{"ENABLE_LABEL_APIS"},
 					Destination: &enableLabelsAPI,
+				}, &cli.StringFlag{
+					Name:        "label-apis-endpoint",
+					Usage:       "Prometheus compatible api server endpoint. When specified it will be used to serve label " +
+						"apis requests and ignore \"enable-label-apis\" flag.\n\tIt is useful when using metric systems not supporting " +
+						"selection of matcher, e.g. Thanos query-frontend.",
+					EnvVars:     []string{"LABEL_APIS_ENDPOINT"},
+					Destination: &labelsAPI,
 				},
 			},
 			Action: func(_ *cli.Context) error {
@@ -105,6 +113,13 @@ func main() {
 						log.Fatalf("invalid alertmanager endpoint: %v\n", err)
 					}
 				}
+				var labelsAPIEndpoint *url.URL
+				if labelsAPI != "" {
+					if labelsAPIEndpoint, err = url.Parse(labelsAPI); err != nil {
+						log.Fatalf("invalid labels-api endpoint: %v\n", err)
+					}
+				}
+
 				serveAt := fmt.Sprintf(":%d", port)
 				authConfig, err := config2.Parse(config)
 				if err != nil {
@@ -128,6 +143,7 @@ func main() {
 					proxy.WithAlertmanager(alertmanagerServerURL),
 					proxy.WithLabel(label),
 					proxy.WithLabelsAPI(enableLabelsAPI),
+					proxy.WithLabelsAPIEndpoint(labelsAPIEndpoint),
 				)
 				if err != nil {
 					log.Fatalf("init proxy: %v", err)
